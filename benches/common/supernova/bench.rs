@@ -97,7 +97,8 @@ pub fn bench_snark_internal_with_arity<
 
   match snark_type {
     SnarkType::Compressed => {
-      let (prover_key, verifier_key) = CompressedSNARK::<_, _, _, _, S1, S2, 2>::setup(&pp).unwrap();
+      let (prover_key, verifier_key) =
+        CompressedSNARK::<_, _, _, _, S1, S2, 2>::setup(&pp).unwrap();
       // Benchmark the prove time
       group.bench_function(bench_params.bench_id("Prove"), |b| {
         b.iter(|| {

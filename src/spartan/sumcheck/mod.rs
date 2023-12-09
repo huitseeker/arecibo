@@ -176,25 +176,18 @@ impl<E: Engine> SumcheckProof<E> {
     ))
   }
 
-  pub fn prove_quad_batch<F>(
-    claims: &[E::Scalar],
-    num_rounds: &[usize],
-    mut poly_A_vec: Vec<MultilinearPolynomial<E::Scalar>>,
-    mut poly_B_vec: Vec<MultilinearPolynomial<E::Scalar>>,
-    coeffs: &[E::Scalar],
+  pub fn prove_quad_batch<F, const N: usize>(
+    claims: &[E::Scalar; N],
+    num_rounds: &[usize; N],
+    mut poly_A_vec: [MultilinearPolynomial<E::Scalar>; N],
+    mut poly_B_vec: [MultilinearPolynomial<E::Scalar>; N],
+    coeffs: &[E::Scalar; N],
     comb_func: F,
     transcript: &mut E::TE,
   ) -> Result<(Self, Vec<E::Scalar>, (Vec<E::Scalar>, Vec<E::Scalar>)), NovaError>
   where
     F: Fn(&E::Scalar, &E::Scalar) -> E::Scalar + Sync,
   {
-    let num_claims = claims.len();
-
-    assert_eq!(num_rounds.len(), num_claims);
-    assert_eq!(poly_A_vec.len(), num_claims);
-    assert_eq!(poly_B_vec.len(), num_claims);
-    assert_eq!(coeffs.len(), num_claims);
-
     for (i, &num_rounds) in num_rounds.iter().enumerate() {
       let expected_size = 1 << num_rounds;
 

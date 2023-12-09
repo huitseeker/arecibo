@@ -9,7 +9,7 @@ use crate::{
   errors::NovaError,
   r1cs::{R1CSShape, RelaxedR1CSInstance, RelaxedR1CSWitness, SparseMatrix},
   spartan::{
-    compute_eval_table_sparse,
+    compute_eval_table_sparse, npowers,
     polys::{eq::EqPolynomial, multilinear::MultilinearPolynomial, multilinear::SparsePolynomial},
     powers,
     sumcheck::SumcheckProof,
@@ -230,8 +230,8 @@ impl<E: Engine, EE: EvaluationEngineTrait<E>> RelaxedR1CSSNARKTrait<E> for Relax
     // to the batched polynomial.
     let eval_W = MultilinearPolynomial::evaluate_with(&W.W, &r_y[1..]);
 
-    let w_vec = vec![PolyEvalWitness { p: W.W }, PolyEvalWitness { p: W.E }];
-    let u_vec = vec![
+    let w_vec: [PolyEvalWitness<E>; 2] = [PolyEvalWitness { p: W.W }, PolyEvalWitness { p: W.E }];
+    let u_vec: [PolyEvalInstance<E>; 2] = [
       PolyEvalInstance {
         c: U.comm_W,
         x: r_y[1..].to_vec(),
@@ -424,9 +424,9 @@ impl<E: Engine, EE: EvaluationEngineTrait<E>> RelaxedR1CSSNARKTrait<E> for Relax
 ///
 /// We allow the polynomial Pᵢ to have different sizes, by appropriately scaling
 /// the claims and resulting evaluations from Sumcheck.
-pub(in crate::spartan) fn batch_eval_prove<E: Engine>(
-  u_vec: Vec<PolyEvalInstance<E>>,
-  w_vec: Vec<PolyEvalWitness<E>>,
+pub(in crate::spartan) fn batch_eval_prove<E: Engine, const N: usize>(
+  u_vec: [PolyEvalInstance<E>; N],
+  w_vec: [PolyEvalWitness<E>; N],
   transcript: &mut E::TE,
 ) -> Result<
   (
@@ -437,44 +437,44 @@ pub(in crate::spartan) fn batch_eval_prove<E: Engine>(
   ),
   NovaError,
 > {
-  let num_claims = u_vec.len();
-  assert_eq!(w_vec.len(), num_claims);
-
   // Compute nᵢ and n = maxᵢ{nᵢ}
-  let num_rounds = u_vec.iter().map(|u| u.x.len()).collect::<Vec<_>>();
+  let num_rounds: [usize; N] = u_vec.iter().map(|u| u.x.len()).collect::<Vec<_>>().try_into().expect("unreachable");
 
   // Check polynomials match number of variables, i.e. |Pᵢ| = 2^nᵢ
-  w_vec
-    .iter()
-    .zip_eq(num_rounds.iter())
-    .for_each(|(w, num_vars)| assert_eq!(w.p.len(), 1 << num_vars));
+  zip_with_for_each!(iter, (w_vec, num_rounds), |w, num_vars| assert_eq!(
+    w.p.len(),
+    1 << num_vars
+  ));
 
   // generate a challenge, and powers of it for random linear combination
   let rho = transcript.squeeze(b"r")?;
-  let powers_of_rho = powers::<E>(&rho, num_claims);
+  let powers_of_rho = npowers::<E, N>(&rho);
 
   let (claims, u_xs, comms): (Vec<_>, Vec<_>, Vec<_>) =
     u_vec.into_iter().map(|u| (u.e, u.x, u.c)).multiunzip();
 
   // Create clones of polynomials to be given to Sumcheck
   // Pᵢ(X)
-  let polys_P: Vec<MultilinearPolynomial<E::Scalar>> = w_vec
-    .iter()
-    .map(|w| MultilinearPolynomial::new(w.p.clone()))
-    .collect();
+  let polys_P = w_vec.iter().map(|w| MultilinearPolynomial::new(w.p.clone())).collect::<Vec<_>>();
+
   // eq(xᵢ, X)
-  let polys_eq: Vec<MultilinearPolynomial<E::Scalar>> = u_xs
-    .into_iter()
+  let polys_eq = u_xs
+    .iter()
     .map(|ux| MultilinearPolynomial::new(EqPolynomial::evals_from_points(&ux)))
-    .collect();
+    .collect::<Vec<_>>();
 
   // For each i, check eᵢ = ∑ₓ Pᵢ(x)eq(xᵢ,x), where x ∈ {0,1}^nᵢ
   let comb_func = |poly_P: &E::Scalar, poly_eq: &E::Scalar| -> E::Scalar { *poly_P * *poly_eq };
   let (sc_proof_batch, r, claims_batch) = SumcheckProof::prove_quad_batch(
-    &claims,
+    &claims
+      .try_into()
+      .map_err(|_| NovaError::InvalidInputLength)?,
     &num_rounds,
-    polys_P,
-    polys_eq,
+    polys_P.try_into()
+    .map_err(|_| NovaError::InvalidInputLength)?,
+    polys_eq
+      .try_into()
+      .map_err(|_| NovaError::InvalidInputLength)?,
     &powers_of_rho,
     comb_func,
     transcript,
@@ -491,7 +491,7 @@ pub(in crate::spartan) fn batch_eval_prove<E: Engine>(
     PolyEvalInstance::batch_diff_size(&comms, &claims_batch_left, &num_rounds, r, gamma);
 
   // P = ∑ᵢ γⁱ⋅Pᵢ
-  let w_joint = PolyEvalWitness::batch_diff_size(w_vec, gamma);
+  let w_joint = PolyEvalWitness::batch_diff_size(w_vec.into_iter().collect(), gamma);
 
   Ok((u_joint, w_joint, sc_proof_batch, claims_batch_left))
 }

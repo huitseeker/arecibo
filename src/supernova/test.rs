@@ -416,12 +416,7 @@ where
     recursive_snark
       .verify(&pp, &z0_primary, &z0_secondary)
       .map_err(|err| {
-        print_constraints_name_on_error_index(
-          &err,
-          &pp,
-          &circuit_primary,
-          &circuit_secondary,
-        )
+        print_constraints_name_on_error_index(&err, &pp, &circuit_primary, &circuit_secondary)
       })
       .unwrap();
 
@@ -569,8 +564,10 @@ fn test_recursive_circuit() {
   );
 }
 
-fn test_pp_digest_with<E1, E2, T1, T2, NC, const N: usize>(non_uniform_circuit: &NC, expected: &Expect)
-where
+fn test_pp_digest_with<E1, E2, T1, T2, NC, const N: usize>(
+  non_uniform_circuit: &NC,
+  expected: &Expect,
+) where
   E1: Engine<Base = <E2 as Engine>::Scalar>,
   E2: Engine<Base = <E1 as Engine>::Scalar>,
   T1: StepCircuit<E1::Scalar>,

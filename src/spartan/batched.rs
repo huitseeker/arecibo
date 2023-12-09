@@ -14,6 +14,7 @@ use std::sync::Arc;
 use super::{
   compute_eval_table_sparse,
   math::Math,
+  npowers,
   polys::{eq::EqPolynomial, multilinear::MultilinearPolynomial},
   powers,
   snark::batch_eval_prove,
@@ -180,6 +181,9 @@ impl<E: Engine, EE: EvaluationEngineTrait<E>> BatchedRelaxedR1CSSNARKTrait<E>
     let num_rounds_x: [_; N] = num_rounds_x
       .try_into()
       .map_err(|_| NovaError::InternalError)?;
+    let num_rounds_y: [_; N] = num_rounds_y
+      .try_into()
+      .map_err(|_| NovaError::InternalError)?;
 
     // Generate tau polynomial corresponding to eq(τ, τ², τ⁴ , …)
     // for a random challenge τ
@@ -187,10 +191,8 @@ impl<E: Engine, EE: EvaluationEngineTrait<E>> BatchedRelaxedR1CSSNARKTrait<E>
     let all_taus = PowPolynomial::squares(&tau, num_rounds_x_max);
 
     let polys_tau = num_rounds_x
-      .iter()
-      .map(|&num_rounds_x| PowPolynomial::evals_with_powers(&all_taus, num_rounds_x))
-      .map(MultilinearPolynomial::new)
-      .collect::<Vec<_>>();
+      .map(|num_rounds_x| PowPolynomial::evals_with_powers(&all_taus, num_rounds_x))
+      .map(MultilinearPolynomial::new);
 
     // Compute MLEs of Az, Bz, Cz, uCz + E
     let (polys_Az, polys_Bz, polys_Cz): (Vec<_>, Vec<_>, Vec<_>) =
@@ -222,9 +224,7 @@ impl<E: Engine, EE: EvaluationEngineTrait<E>> BatchedRelaxedR1CSSNARKTrait<E>
     let (sc_proof_outer, r_x, claims_outer) = SumcheckProof::prove_cubic_with_additive_term_batch(
       &[E::Scalar::ZERO; N],
       &num_rounds_x,
-      polys_tau
-        .try_into()
-        .map_err(|_| NovaError::InvalidInputLength)?,
+      polys_tau,
       polys_Az
         .into_iter()
         .map(MultilinearPolynomial::new)
@@ -279,12 +279,14 @@ impl<E: Engine, EE: EvaluationEngineTrait<E>> BatchedRelaxedR1CSSNARKTrait<E>
     let inner_r = transcript.squeeze(b"in_r")?;
     let inner_r_square = inner_r.square();
     let inner_r_cube = inner_r_square * inner_r;
-    let inner_r_powers = powers::<E>(&inner_r_cube, num_instances);
+    let inner_r_powers = npowers::<E, N>(&inner_r_cube);
 
     let claims_inner_joint = evals_Az_Bz_Cz
       .iter()
       .map(|(eval_Az, eval_Bz, eval_Cz)| *eval_Az + inner_r * eval_Bz + inner_r_square * eval_Cz)
-      .collect::<Vec<_>>();
+      .collect::<Vec<_>>()
+      .try_into()
+      .map_err(|_| NovaError::InternalError)?;
 
     let polys_ABCs = {
       let inner = |M_evals_As: Vec<E::Scalar>,
@@ -324,8 +326,12 @@ impl<E: Engine, EE: EvaluationEngineTrait<E>> BatchedRelaxedR1CSSNARKTrait<E>
       SumcheckProof::prove_quad_batch(
         &claims_inner_joint,
         &num_rounds_y,
-        polys_ABCs,
-        polys_Z,
+        polys_ABCs
+          .try_into()
+          .map_err(|_| NovaError::InvalidInputLength)?,
+        polys_Z
+          .try_into()
+          .map_err(|_| NovaError::InvalidInputLength)?,
         &inner_r_powers,
         comb_func,
         &mut transcript,
@@ -369,8 +375,11 @@ impl<E: Engine, EE: EvaluationEngineTrait<E>> BatchedRelaxedR1CSSNARKTrait<E>
       (w_vec, u_vec)
     };
 
-    let (batched_u, batched_w, sc_proof_batch, claims_batch_left) =
-      batch_eval_prove(u_vec, w_vec, &mut transcript)?;
+    let (batched_u, batched_w, sc_proof_batch, claims_batch_left) = batch_eval_prove::<E, N>(
+      u_vec.try_into().map_err(|_| NovaError::InternalError)?,
+      w_vec.try_into().map_err(|_| NovaError::InternalError)?,
+      &mut transcript,
+    )?;
 
     let eval_arg = EE::prove(
       ck,
