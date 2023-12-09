@@ -226,12 +226,11 @@ where
   }
 }
 
-fn print_constraints_name_on_error_index<E1, E2, C1, C2>(
+fn print_constraints_name_on_error_index<E1, E2, C1, C2, const N: usize>(
   err: &SuperNovaError,
-  pp: &PublicParams<E1, E2, C1, C2>,
+  pp: &PublicParams<E1, E2, C1, C2, N>,
   c_primary: &C1,
   c_secondary: &C2,
-  num_augmented_circuits: usize,
 ) where
   E1: Engine<Base = <E2 as Engine>::Scalar>,
   E2: Engine<Base = <E1 as Engine>::Scalar>,
@@ -245,7 +244,7 @@ fn print_constraints_name_on_error_index<E1, E2, C1, C2>(
         None,
         c_primary,
         pp.ro_consts_circuit_primary.clone(),
-        num_augmented_circuits,
+        N,
       );
       let mut cs: TestShapeCS<E1> = TestShapeCS::new();
       let _ = circuit_primary.synthesize(&mut cs);
@@ -259,7 +258,7 @@ fn print_constraints_name_on_error_index<E1, E2, C1, C2>(
         None,
         c_secondary,
         pp.ro_consts_circuit_secondary.clone(),
-        num_augmented_circuits,
+        N,
       );
       let mut cs: TestShapeCS<E2> = TestShapeCS::new();
       let _ = circuit_secondary.synthesize(&mut cs);
@@ -318,16 +317,12 @@ impl<F: PrimeField> StepCircuit<F> for TestROMCircuit<F> {
 }
 
 impl<E1, E2>
-  NonUniformCircuit<E1, E2, TestROMCircuit<E1::Scalar>, TrivialSecondaryCircuit<E2::Scalar>>
+  NonUniformCircuit<E1, E2, TestROMCircuit<E1::Scalar>, TrivialSecondaryCircuit<E2::Scalar>, 2>
   for TestROM<E1, E2, TrivialSecondaryCircuit<E2::Scalar>>
 where
   E1: Engine<Base = <E2 as Engine>::Scalar>,
   E2: Engine<Base = <E1 as Engine>::Scalar>,
 {
-  fn num_circuits(&self) -> usize {
-    2
-  }
-
   fn primary_circuit(&self, circuit_index: usize) -> TestROMCircuit<E1::Scalar> {
     match circuit_index {
       0 => TestROMCircuit::Cubic(CubicCircuit::new(circuit_index, self.rom.len())),
@@ -426,7 +421,6 @@ where
           &pp,
           &circuit_primary,
           &circuit_secondary,
-          test_rom.num_circuits(),
         )
       })
       .unwrap();
@@ -575,19 +569,19 @@ fn test_recursive_circuit() {
   );
 }
 
-fn test_pp_digest_with<E1, E2, T1, T2, NC>(non_uniform_circuit: &NC, expected: &Expect)
+fn test_pp_digest_with<E1, E2, T1, T2, NC, const N: usize>(non_uniform_circuit: &NC, expected: &Expect)
 where
   E1: Engine<Base = <E2 as Engine>::Scalar>,
   E2: Engine<Base = <E1 as Engine>::Scalar>,
   T1: StepCircuit<E1::Scalar>,
   T2: StepCircuit<E2::Scalar>,
-  NC: NonUniformCircuit<E1, E2, T1, T2>,
+  NC: NonUniformCircuit<E1, E2, T1, T2, N>,
 {
   // TODO: add back in https://github.com/lurk-lab/arecibo/issues/53
   // // this tests public parameters with a size specifically intended for a spark-compressed SNARK
   // let pp_hint1 = Some(SPrime::<G1>::commitment_key_floor());
   // let pp_hint2 = Some(SPrime::<G2>::commitment_key_floor());
-  let pp = PublicParams::<E1, E2, T1, T2>::setup(
+  let pp = PublicParams::<E1, E2, T1, T2, N>::setup(
     non_uniform_circuit,
     &*default_ck_hint(),
     &*default_ck_hint(),
@@ -617,7 +611,7 @@ fn test_supernova_pp_digest() {
     TrivialSecondaryCircuit<<VestaEngine as Engine>::Scalar>,
   >::new(rom);
 
-  test_pp_digest_with::<PallasEngine, VestaEngine, _, _, _>(
+  test_pp_digest_with::<PallasEngine, VestaEngine, _, _, _, 2>(
     &test_rom,
     &expect!["95f57227c5d62d13b9fe55deac13b8bd099b068bcc785d7b3a054bf376f68e00"],
   );
@@ -632,7 +626,7 @@ fn test_supernova_pp_digest() {
     TrivialSecondaryCircuit<<GrumpkinEngine as Engine>::Scalar>,
   >::new(rom);
 
-  test_pp_digest_with::<Bn256Engine, GrumpkinEngine, _, _, _>(
+  test_pp_digest_with::<Bn256Engine, GrumpkinEngine, _, _, _, 2>(
     &test_rom_grumpkin,
     &expect!["d439e957618eb071360f9c87c0014fd0cfa21f1271813004d18f967355912a01"],
   );
@@ -647,7 +641,7 @@ fn test_supernova_pp_digest() {
     TrivialSecondaryCircuit<<Secq256k1Engine as Engine>::Scalar>,
   >::new(rom);
 
-  test_pp_digest_with::<Secp256k1Engine, Secq256k1Engine, _, _, _>(
+  test_pp_digest_with::<Secp256k1Engine, Secq256k1Engine, _, _, _, 2>(
     &test_rom_secp,
     &expect!["5dfc2cc21f0a29a67ec3b3cbb7fbff535c876ef51e655f4abf4c00e058175103"],
   );
@@ -816,16 +810,12 @@ where
   }
 }
 
-impl<E1, E2> NonUniformCircuit<E1, E2, Self, TrivialSecondaryCircuit<E1::Base>>
+impl<E1, E2> NonUniformCircuit<E1, E2, Self, TrivialSecondaryCircuit<E1::Base>, 2>
   for RootCheckingCircuit<E1::Scalar>
 where
   E1: Engine<Base = <E2 as Engine>::Scalar>,
   E2: Engine<Base = <E1 as Engine>::Scalar>,
 {
-  fn num_circuits(&self) -> usize {
-    2
-  }
-
   fn primary_circuit(&self, circuit_index: usize) -> Self {
     match circuit_index {
       0 => Self::Cube(CubeRootCheckingCircuit { y: None }),
@@ -862,6 +852,7 @@ where
     E2,
     RootCheckingCircuit<<E1 as Engine>::Scalar>,
     TrivialSecondaryCircuit<<E2 as Engine>::Scalar>,
+    2,
   >::setup(&roots[0], &*default_ck_hint(), &*default_ck_hint());
   // produce a recursive SNARK
 
@@ -876,7 +867,7 @@ where
     &z0_secondary,
   )
   .map_err(|err| {
-    print_constraints_name_on_error_index(&err, &pp, circuit_primary, &circuit_secondary, 2)
+    print_constraints_name_on_error_index(&err, &pp, circuit_primary, &circuit_secondary)
   })
   .unwrap();
 
@@ -884,7 +875,7 @@ where
     let res = recursive_snark.prove_step(&pp, circuit_primary, &circuit_secondary);
     assert!(res
       .map_err(|err| {
-        print_constraints_name_on_error_index(&err, &pp, circuit_primary, &circuit_secondary, 2)
+        print_constraints_name_on_error_index(&err, &pp, circuit_primary, &circuit_secondary)
       })
       .is_ok());
 
@@ -892,7 +883,7 @@ where
     let res = recursive_snark
       .verify(&pp, &z0_primary, &z0_secondary)
       .map_err(|err| {
-        print_constraints_name_on_error_index(&err, &pp, circuit_primary, &circuit_secondary, 2)
+        print_constraints_name_on_error_index(&err, &pp, circuit_primary, &circuit_secondary)
       });
     assert!(res.is_ok());
   }

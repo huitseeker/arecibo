@@ -34,6 +34,22 @@ fn powers<E: Engine>(s: &E::Scalar, n: usize) -> Vec<E::Scalar> {
     .collect()
 }
 
+// Creates a const-sized array of the first `N` powers of `s`.
+fn npowers<E: Engine, const N: usize>(s: &E::Scalar) -> [E::Scalar; N] {
+  let mut powers: [E::Scalar; N] = [E::Scalar::ZERO; N];
+  if N > 0 {
+    powers[0] = E::Scalar::ONE;
+
+    let mut i = 1;
+    while i < N {
+      powers[i] = powers[i - 1] * s;
+      i += 1;
+    }
+  }
+
+  powers
+}
+
 /// A type that holds a witness to a polynomial evaluation instance
 #[derive(Debug)]
 struct PolyEvalWitness<E: Engine> {

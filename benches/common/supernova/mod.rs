@@ -95,17 +95,13 @@ where
 }
 
 impl<E1, E2, S>
-  NonUniformCircuit<E1, E2, NonTrivialTestCircuit<E1::Scalar>, TrivialTestCircuit<E2::Scalar>>
+  NonUniformCircuit<E1, E2, NonTrivialTestCircuit<E1::Scalar>, TrivialTestCircuit<E2::Scalar>, 2>
   for NonUniformBench<E1, E2, S>
 where
   E1: Engine<Base = <E2 as Engine>::Scalar>,
   E2: Engine<Base = <E1 as Engine>::Scalar>,
   S: StepCircuit<E2::Scalar> + Default,
 {
-  fn num_circuits(&self) -> usize {
-    self.num_circuits
-  }
-
   fn primary_circuit(&self, circuit_index: usize) -> NonTrivialTestCircuit<E1::Scalar> {
     assert!(
       circuit_index < self.num_circuits,

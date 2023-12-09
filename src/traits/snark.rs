@@ -78,22 +78,26 @@ pub trait BatchedRelaxedR1CSSNARKTrait<E: Engine>:
   ///
   /// **Note:** This method should be cheap and should not copy most of the
   /// commitment key. Look at `CommitmentEngineTrait::setup` for generating SRS data.
-  fn setup(
+  fn setup<const N: usize>(
     ck: Arc<CommitmentKey<E>>,
-    S: Vec<&R1CSShape<E>>,
+    S: [&R1CSShape<E>; N],
   ) -> Result<(Self::ProverKey, Self::VerifierKey), NovaError>;
 
   /// Produces a new SNARK for a batch of relaxed R1CS
-  fn prove(
+  fn prove<const N: usize>(
     ck: &CommitmentKey<E>,
     pk: &Self::ProverKey,
-    S: Vec<&R1CSShape<E>>,
-    U: &[RelaxedR1CSInstance<E>],
-    W: &[RelaxedR1CSWitness<E>],
+    S: [&R1CSShape<E>; N],
+    U: &[RelaxedR1CSInstance<E>; N],
+    W: &[RelaxedR1CSWitness<E>; N],
   ) -> Result<Self, NovaError>;
 
   /// Verifies a SNARK for a batch of relaxed R1CS
-  fn verify(&self, vk: &Self::VerifierKey, U: &[RelaxedR1CSInstance<E>]) -> Result<(), NovaError>;
+  fn verify<const N: usize>(
+    &self,
+    vk: &Self::VerifierKey,
+    U: &[RelaxedR1CSInstance<E>; N],
+  ) -> Result<(), NovaError>;
 }
 
 /// A helper trait that defines the behavior of a verifier key of `zkSNARK`

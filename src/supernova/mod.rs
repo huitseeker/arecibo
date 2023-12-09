@@ -33,6 +33,7 @@ use once_cell::sync::OnceCell;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use serde_big_array::BigArray;
 use tracing::debug;
 
 use crate::bellpepper::{
@@ -82,7 +83,7 @@ impl<E: Engine> CircuitDigests<E> {
 /// A vector of [`R1CSWithArity`] adjoined to a set of [`PublicParams`]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound = "")]
-pub struct PublicParams<E1, E2, C1, C2>
+pub struct PublicParams<E1, E2, C1, C2, const N: usize>
 where
   E1: Engine<Base = <E2 as Engine>::Scalar>,
   E2: Engine<Base = <E1 as Engine>::Scalar>,
@@ -90,7 +91,8 @@ where
   C2: StepCircuit<E2::Scalar>,
 {
   /// The internal circuit shapes
-  circuit_shapes: Vec<R1CSWithArity<E1>>,
+  #[serde(with = "BigArray")]
+  pub circuit_shapes: [R1CSWithArity<E1>; N],
 
   ro_consts_primary: ROConstants<E1>,
   ro_consts_circuit_primary: ROConstantsCircuit<E2>,
@@ -214,7 +216,7 @@ where
   }
 }
 
-impl<E1, E2, C1, C2> Index<usize> for PublicParams<E1, E2, C1, C2>
+impl<E1, E2, C1, C2, const N: usize> Index<usize> for PublicParams<E1, E2, C1, C2, N>
 where
   E1: Engine<Base = <E2 as Engine>::Scalar>,
   E2: Engine<Base = <E1 as Engine>::Scalar>,
@@ -228,7 +230,7 @@ where
   }
 }
 
-impl<E1, E2, C1, C2> SimpleDigestible for PublicParams<E1, E2, C1, C2>
+impl<E1, E2, C1, C2, const N: usize> SimpleDigestible for PublicParams<E1, E2, C1, C2, N>
 where
   E1: Engine<Base = <E2 as Engine>::Scalar>,
   E2: Engine<Base = <E1 as Engine>::Scalar>,
@@ -237,7 +239,7 @@ where
 {
 }
 
-impl<E1, E2, C1, C2> PublicParams<E1, E2, C1, C2>
+impl<E1, E2, C1, C2, const N: usize> PublicParams<E1, E2, C1, C2, N>
 where
   E1: Engine<Base = <E2 as Engine>::Scalar>,
   E2: Engine<Base = <E1 as Engine>::Scalar>,
@@ -262,12 +264,12 @@ where
   /// * `ck_hint1`: A `CommitmentKeyHint` for `E1`, which is a function that provides a hint
   ///    for the number of generators required in the commitment scheme for the primary circuit.
   /// * `ck_hint2`: A `CommitmentKeyHint` for `E2`, similar to `ck_hint1`, but for the secondary circuit.
-  pub fn setup<NC: NonUniformCircuit<E1, E2, C1, C2>>(
+  pub fn setup<NC: NonUniformCircuit<E1, E2, C1, C2, N>>(
     non_uniform_circuit: &NC,
     ck_hint1: &CommitmentKeyHint<E1>,
     ck_hint2: &CommitmentKeyHint<E2>,
   ) -> Self {
-    let num_circuits = non_uniform_circuit.num_circuits();
+    let num_circuits = N;
 
     let augmented_circuit_params_primary =
       SuperNovaAugmentedCircuitParams::new(BN_LIMB_WIDTH, BN_N_LIMBS, true);
@@ -275,7 +277,7 @@ where
     // ro_consts_circuit_primary are parameterized by E2 because the type alias uses E2::Base = E1::Scalar
     let ro_consts_circuit_primary: ROConstantsCircuit<E2> = ROConstantsCircuit::<E2>::default();
 
-    let circuit_shapes = (0..num_circuits)
+    let circuit_shapes: [R1CSWithArity<E1>; N] = (0..N)
       .map(|i| {
         let c_primary = non_uniform_circuit.primary_circuit(i);
         let F_arity = c_primary.arity();
@@ -296,7 +298,9 @@ where
         let r1cs_shape_primary = cs.r1cs_shape();
         R1CSWithArity::new(r1cs_shape_primary, F_arity)
       })
-      .collect::<Vec<_>>();
+      .collect::<Vec<_>>()
+      .try_into()
+      .expect("Failed to convert N-sized vector to N-sized array");
 
     let ck_primary = Self::compute_primary_ck(&circuit_shapes, ck_hint1);
     let ck_primary = Arc::new(ck_primary);
@@ -345,7 +349,7 @@ where
   }
 
   /// Breaks down an instance of [`PublicParams`] into the circuit params and auxiliary params.
-  pub fn into_parts(self) -> (Vec<R1CSWithArity<E1>>, AuxParams<E1, E2>) {
+  pub fn into_parts(self) -> ([R1CSWithArity<E1>; N], AuxParams<E1, E2>) {
     let digest = self.digest();
 
     let Self {
@@ -380,7 +384,7 @@ where
   }
 
   /// Create a [`PublicParams`] from a vector of raw [`R1CSWithArity`] and auxiliary params.
-  pub fn from_parts(circuit_shapes: Vec<R1CSWithArity<E1>>, aux_params: AuxParams<E1, E2>) -> Self {
+  pub fn from_parts(circuit_shapes: [R1CSWithArity<E1>; N], aux_params: AuxParams<E1, E2>) -> Self {
     let pp = Self {
       circuit_shapes,
       ro_consts_primary: aux_params.ro_consts_primary,
@@ -406,7 +410,7 @@ where
   /// Create a [`PublicParams`] from a vector of raw [`R1CSWithArity`] and auxiliary params.
   /// We don't check that the `aux_params.digest` is a valid digest for the created params.
   pub fn from_parts_unchecked(
-    circuit_shapes: Vec<R1CSWithArity<E1>>,
+    circuit_shapes: [R1CSWithArity<E1>; N],
     aux_params: AuxParams<E1, E2>,
   ) -> Self {
     Self {
@@ -445,7 +449,8 @@ where
     self
       .digest
       .get_or_try_init(|| {
-        let dc: DigestComputer<'_, <E1 as Engine>::Scalar, Self> = DigestComputer::new(self);
+        let dc: DigestComputer<'_, <E1 as Engine>::Scalar, PublicParams<E1, E2, C1, C2, N>> =
+          DigestComputer::new(self);
         dc.digest()
       })
       .cloned()
@@ -463,12 +468,13 @@ where
   }
 
   /// Returns all the primary R1CS Shapes
-  fn primary_r1cs_shapes(&self) -> Vec<&R1CSShape<E1>> {
-    self
-      .circuit_shapes
-      .iter()
-      .map(|cs| &cs.r1cs_shape)
-      .collect::<Vec<_>>()
+  pub fn nprimary_r1cs_shapes(&self) -> [&R1CSShape<E1>; N] {
+    let mut shapes: [&R1CSShape<E1>; N] = [&self.circuit_shapes[0].r1cs_shape; N];
+    for (i, cs) in self.circuit_shapes.iter().enumerate() {
+      shapes[i] = &cs.r1cs_shape;
+    }
+
+    shapes
   }
 }
 
@@ -539,18 +545,19 @@ where
   /// iterate base step to get new instance of recursive SNARK
   #[allow(clippy::too_many_arguments)]
   pub fn new<
-    C0: NonUniformCircuit<E1, E2, C1, C2>,
+    C0: NonUniformCircuit<E1, E2, C1, C2, N>,
     C1: StepCircuit<E1::Scalar>,
     C2: StepCircuit<E2::Scalar>,
+    const N: usize,
   >(
-    pp: &PublicParams<E1, E2, C1, C2>,
+    pp: &PublicParams<E1, E2, C1, C2, N>,
     non_uniform_circuit: &C0,
     c_primary: &C1,
     c_secondary: &C2,
     z0_primary: &[E1::Scalar],
     z0_secondary: &[E2::Scalar],
   ) -> Result<Self, SuperNovaError> {
-    let num_augmented_circuits = non_uniform_circuit.num_circuits();
+    let num_augmented_circuits = N;
     let circuit_index = non_uniform_circuit.initial_circuit_index();
 
     let r1cs_secondary = &pp.circuit_shape_secondary.r1cs_shape;
@@ -745,9 +752,9 @@ where
   /// executing a step of the incremental computation
   #[allow(clippy::too_many_arguments)]
   #[tracing::instrument(skip_all, name = "supernova::RecursiveSNARK::prove_step")]
-  pub fn prove_step<C1: StepCircuit<E1::Scalar>, C2: StepCircuit<E2::Scalar>>(
+  pub fn prove_step<C1: StepCircuit<E1::Scalar>, C2: StepCircuit<E2::Scalar>, const N: usize>(
     &mut self,
-    pp: &PublicParams<E1, E2, C1, C2>,
+    pp: &PublicParams<E1, E2, C1, C2, N>,
     c_primary: &C1,
     c_secondary: &C2,
   ) -> Result<(), SuperNovaError> {
@@ -932,9 +939,9 @@ where
   }
 
   /// verify recursive snark
-  pub fn verify<C1: StepCircuit<E1::Scalar>, C2: StepCircuit<E2::Scalar>>(
+  pub fn verify<C1: StepCircuit<E1::Scalar>, C2: StepCircuit<E2::Scalar>, const N: usize>(
     &self,
-    pp: &PublicParams<E1, E2, C1, C2>,
+    pp: &PublicParams<E1, E2, C1, C2, N>,
     z0_primary: &[E1::Scalar],
     z0_secondary: &[E2::Scalar],
   ) -> Result<(Vec<E1::Scalar>, Vec<E2::Scalar>), SuperNovaError> {
@@ -1131,8 +1138,8 @@ where
 
 /// SuperNova helper trait, for implementors that provide sets of sub-circuits to be proved via NIVC. `C1` must be a
 /// type (likely an `Enum`) for which a potentially-distinct instance can be supplied for each `index` below
-/// `self.num_circuits()`.
-pub trait NonUniformCircuit<E1, E2, C1, C2>
+/// `N`, the number of provided sub-circuits.
+pub trait NonUniformCircuit<E1, E2, C1, C2, const N: usize>
 where
   E1: Engine<Base = <E2 as Engine>::Scalar>,
   E2: Engine<Base = <E1 as Engine>::Scalar>,
@@ -1144,9 +1151,6 @@ where
     0
   }
 
-  /// How many circuits are provided?
-  fn num_circuits(&self) -> usize;
-
   /// Return a new instance of the primary circuit at `index`.
   fn primary_circuit(&self, circuit_index: usize) -> C1;
 
@@ -1155,7 +1159,8 @@ where
 }
 
 /// Extension trait to simplify getting scalar form of initial circuit index.
-trait InitialProgramCounter<E1, E2, C1, C2>: NonUniformCircuit<E1, E2, C1, C2>
+pub trait InitialProgramCounter<E1, E2, C1, C2, const N: usize>:
+  NonUniformCircuit<E1, E2, C1, C2, N>
 where
   E1: Engine<Base = <E2 as Engine>::Scalar>,
   E2: Engine<Base = <E1 as Engine>::Scalar>,
@@ -1168,8 +1173,9 @@ where
   }
 }
 
-impl<E1, E2, C1, C2, T: NonUniformCircuit<E1, E2, C1, C2>> InitialProgramCounter<E1, E2, C1, C2>
-  for T
+// This blanket implementation "locks in" the implementation of `initial_program_counter` as the default trait implementation
+impl<E1, E2, C1, C2, T: NonUniformCircuit<E1, E2, C1, C2, N>, const N: usize>
+  InitialProgramCounter<E1, E2, C1, C2, N> for T
 where
   E1: Engine<Base = <E2 as Engine>::Scalar>,
   E2: Engine<Base = <E1 as Engine>::Scalar>,

@@ -463,28 +463,21 @@ impl<E: Engine> SumcheckProof<E> {
     ))
   }
 
-  pub fn prove_cubic_with_additive_term_batch<F>(
-    claims: &[E::Scalar],
-    num_rounds: &[usize],
-    mut poly_A_vec: Vec<MultilinearPolynomial<E::Scalar>>,
-    mut poly_B_vec: Vec<MultilinearPolynomial<E::Scalar>>,
-    mut poly_C_vec: Vec<MultilinearPolynomial<E::Scalar>>,
-    mut poly_D_vec: Vec<MultilinearPolynomial<E::Scalar>>,
-    coeffs: &[E::Scalar],
+  pub fn prove_cubic_with_additive_term_batch<F, const N: usize>(
+    claims: &[E::Scalar; N],
+    num_rounds: &[usize; N],
+    mut poly_A_vec: [MultilinearPolynomial<E::Scalar>; N],
+    mut poly_B_vec: [MultilinearPolynomial<E::Scalar>; N],
+    mut poly_C_vec: [MultilinearPolynomial<E::Scalar>; N],
+    mut poly_D_vec: [MultilinearPolynomial<E::Scalar>; N],
+    coeffs: &[E::Scalar; N],
     comb_func: F,
     transcript: &mut E::TE,
   ) -> Result<(Self, Vec<E::Scalar>, Vec<Vec<E::Scalar>>), NovaError>
   where
     F: Fn(&E::Scalar, &E::Scalar, &E::Scalar, &E::Scalar) -> E::Scalar + Sync,
   {
-    let num_instances = claims.len();
-    assert_eq!(num_rounds.len(), num_instances);
-    assert_eq!(coeffs.len(), num_instances);
-    assert_eq!(poly_A_vec.len(), num_instances);
-    assert_eq!(poly_B_vec.len(), num_instances);
-    assert_eq!(poly_C_vec.len(), num_instances);
-    assert_eq!(poly_D_vec.len(), num_instances);
-
+    let num_instances = N;
     for (i, &num_rounds) in num_rounds.iter().enumerate() {
       let expected_size = 1 << num_rounds;
 
