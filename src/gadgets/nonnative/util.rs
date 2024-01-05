@@ -13,7 +13,7 @@ use std::io::{self, Write};
 /// A representation of a bit
 pub struct Bit<Scalar: PrimeField> {
   /// The linear combination which constrain the value of the bit
-  pub bit: LinearCombination<Scalar>,
+  bit: LinearCombination<Scalar>,
   /// The value of the bit (filled at witness-time)
   pub value: Option<bool>,
 }
@@ -32,7 +32,7 @@ pub struct Bitvector<Scalar: PrimeField> {
 impl<Scalar: PrimeField> Bit<Scalar> {
   /// Allocate a variable in the constraint system which can only be a
   /// boolean value.
-  pub fn alloc<CS: ConstraintSystem<Scalar>>(
+  fn alloc<CS: ConstraintSystem<Scalar>>(
     mut cs: CS,
     value: Option<bool>,
   ) -> Result<Self, SynthesisError> {
