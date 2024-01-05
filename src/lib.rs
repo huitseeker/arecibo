@@ -17,11 +17,11 @@ mod digest;
 mod nifs;
 
 // public modules
-pub mod constants;
-pub mod errors;
+mod constants;
+mod errors;
 pub mod gadgets;
 pub mod provider;
-pub mod r1cs;
+mod r1cs;
 pub mod spartan;
 pub mod traits;
 
@@ -72,7 +72,7 @@ impl<E: Engine> SimpleDigestible for R1CSWithArity<E> {}
 
 impl<E: Engine> R1CSWithArity<E> {
   /// Create a new `CircuitShape`
-  pub fn new(r1cs_shape: R1CSShape<E>, F_arity: usize) -> Self {
+  fn new(r1cs_shape: R1CSShape<E>, F_arity: usize) -> Self {
     Self {
       F_arity,
       r1cs_shape,
@@ -80,7 +80,7 @@ impl<E: Engine> R1CSWithArity<E> {
   }
 
   /// Return the [CircuitShape]' digest.
-  pub fn digest(&self) -> E::Scalar {
+  fn digest(&self) -> E::Scalar {
     let dc: DigestComputer<'_, <E as Engine>::Scalar, Self> = DigestComputer::new(self);
     dc.digest().expect("Failure in computing digest")
   }
@@ -246,7 +246,7 @@ where
   }
 
   /// Retrieve the digest of the public parameters.
-  pub fn digest(&self) -> E1::Scalar {
+  fn digest(&self) -> E1::Scalar {
     self
       .digest
       .get_or_try_init(|| DigestComputer::new(self).digest())
@@ -275,7 +275,7 @@ where
 /// which allows the reuse of memory allocations and avoids unnecessary new allocations in the critical section.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(bound = "")]
-pub struct ResourceBuffer<E: Engine> {
+struct ResourceBuffer<E: Engine> {
   l_w: Option<R1CSWitness<E>>,
   l_u: Option<R1CSInstance<E>>,
 
