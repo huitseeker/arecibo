@@ -23,7 +23,7 @@ use itertools::Itertools as _;
 /// An Allocated R1CS Instance
 #[derive(Clone)]
 pub struct AllocatedR1CSInstance<E: Engine> {
-  pub(crate) W: AllocatedPoint<E>,
+  W: AllocatedPoint<E>,
   pub(crate) X0: AllocatedNum<E::Base>,
   pub(crate) X1: AllocatedNum<E::Base>,
 }
@@ -47,7 +47,7 @@ impl<E: Engine> AllocatedR1CSInstance<E> {
   }
 
   /// Absorb the provided instance in the RO
-  pub fn absorb_in_ro(&self, ro: &mut E::ROCircuit) {
+  fn absorb_in_ro(&self, ro: &mut E::ROCircuit) {
     ro.absorb(&self.W.x);
     ro.absorb(&self.W.y);
     ro.absorb(&self.W.is_infinity);
@@ -59,11 +59,11 @@ impl<E: Engine> AllocatedR1CSInstance<E> {
 /// An Allocated Relaxed R1CS Instance
 #[derive(Clone)]
 pub struct AllocatedRelaxedR1CSInstance<E: Engine> {
-  pub(crate) W: AllocatedPoint<E>,
-  pub(crate) E: AllocatedPoint<E>,
-  pub(crate) u: AllocatedNum<E::Base>,
-  pub(crate) X0: BigNat<E::Base>,
-  pub(crate) X1: BigNat<E::Base>,
+  W: AllocatedPoint<E>,
+  E: AllocatedPoint<E>,
+  u: AllocatedNum<E::Base>,
+  X0: BigNat<E::Base>,
+  X1: BigNat<E::Base>,
 }
 
 impl<E: Engine> AllocatedRelaxedR1CSInstance<E> {
@@ -402,7 +402,7 @@ pub fn conditionally_select_vec_allocated_relaxed_r1cs_instance<
 }
 
 /// c = cond ? a: b, where a, b: `AllocatedPoint`
-pub fn conditionally_select_point<E: Engine, CS: ConstraintSystem<<E as Engine>::Base>>(
+fn conditionally_select_point<E: Engine, CS: ConstraintSystem<<E as Engine>::Base>>(
   mut cs: CS,
   a: &AllocatedPoint<E>,
   b: &AllocatedPoint<E>,
