@@ -94,7 +94,7 @@ where
 {
   #[allow(unused)]
   /// Create a new, default `TestShapeCS`,
-  pub fn new() -> Self {
+  fn new() -> Self {
     Self::default()
   }
 
@@ -115,7 +115,7 @@ where
 
   /// Print all public inputs, aux inputs, and constraint names.
   #[allow(dead_code)]
-  pub fn pretty_print_list(&self) -> Vec<String> {
+  fn pretty_print_list(&self) -> Vec<String> {
     let mut result = Vec::new();
 
     for input in &self.inputs {
@@ -134,7 +134,7 @@ where
 
   /// Print all iputs and a detailed representation of each constraint.
   #[allow(dead_code)]
-  pub fn pretty_print(&self) -> String {
+  fn pretty_print(&self) -> String {
     let mut s = String::new();
 
     for input in &self.inputs {
