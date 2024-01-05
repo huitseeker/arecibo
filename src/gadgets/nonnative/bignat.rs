@@ -15,7 +15,7 @@ use std::convert::From;
 
 /// Compute the natural number represented by an array of limbs.
 /// The limbs are assumed to be based the `limb_width` power of 2.
-pub fn limbs_to_nat<Scalar: PrimeField, B: Borrow<Scalar>, I: DoubleEndedIterator<Item = B>>(
+fn limbs_to_nat<Scalar: PrimeField, B: Borrow<Scalar>, I: DoubleEndedIterator<Item = B>>(
   limbs: I,
   limb_width: usize,
 ) -> BigInt {
@@ -60,14 +60,14 @@ pub fn nat_to_limbs<Scalar: PrimeField>(
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct BigNatParams {
-  pub min_bits: usize,
-  pub max_word: BigInt,
+  min_bits: usize,
+  max_word: BigInt,
   pub limb_width: usize,
   pub n_limbs: usize,
 }
 
 impl BigNatParams {
-  pub fn new(limb_width: usize, n_limbs: usize) -> Self {
+  fn new(limb_width: usize, n_limbs: usize) -> Self {
     let mut max_word = BigInt::from(1) << limb_width as u32;
     max_word -= 1;
     Self {
@@ -85,7 +85,7 @@ pub struct BigNat<Scalar: PrimeField> {
   /// The linear combinations which constrain the value of each limb of the number
   pub limbs: Vec<LinearCombination<Scalar>>,
   /// The witness values for each limb (filled at witness-time)
-  pub limb_values: Option<Vec<Scalar>>,
+  limb_values: Option<Vec<Scalar>>,
   /// The value of the whole number (filled at witness-time)
   pub value: Option<BigInt>,
   /// Parameters
@@ -261,7 +261,7 @@ impl<Scalar: PrimeField> BigNat<Scalar> {
     limbs
   }
 
-  pub fn assert_well_formed<CS: ConstraintSystem<Scalar>>(
+  fn assert_well_formed<CS: ConstraintSystem<Scalar>>(
     &self,
     mut cs: CS,
   ) -> Result<(), SynthesisError> {
@@ -276,7 +276,7 @@ impl<Scalar: PrimeField> BigNat<Scalar> {
   }
 
   /// Break `self` up into a bit-vector.
-  pub fn decompose<CS: ConstraintSystem<Scalar>>(
+  fn decompose<CS: ConstraintSystem<Scalar>>(
     &self,
     mut cs: CS,
   ) -> Result<Bitvector<Scalar>, SynthesisError> {
@@ -316,7 +316,7 @@ impl<Scalar: PrimeField> BigNat<Scalar> {
     })
   }
 
-  pub fn enforce_limb_width_agreement(
+  fn enforce_limb_width_agreement(
     &self,
     other: &Self,
     location: &str,
@@ -332,7 +332,7 @@ impl<Scalar: PrimeField> BigNat<Scalar> {
     }
   }
 
-  pub fn from_poly(poly: Polynomial<Scalar>, limb_width: usize, max_word: BigInt) -> Self {
+  fn from_poly(poly: Polynomial<Scalar>, limb_width: usize, max_word: BigInt) -> Self {
     Self {
       params: BigNatParams {
         min_bits: 0,
@@ -350,7 +350,7 @@ impl<Scalar: PrimeField> BigNat<Scalar> {
   }
 
   /// Constrain `self` to be equal to `other`, after carrying both.
-  pub fn equal_when_carried<CS: ConstraintSystem<Scalar>>(
+  fn equal_when_carried<CS: ConstraintSystem<Scalar>>(
     &self,
     mut cs: CS,
     other: &Self,
@@ -434,7 +434,7 @@ impl<Scalar: PrimeField> BigNat<Scalar> {
   /// Constrain `self` to be equal to `other`, after carrying both.
   /// Uses regrouping internally to take full advantage of the field size and reduce the amount
   /// of carrying.
-  pub fn equal_when_carried_regroup<CS: ConstraintSystem<Scalar>>(
+  fn equal_when_carried_regroup<CS: ConstraintSystem<Scalar>>(
     &self,
     mut cs: CS,
     other: &Self,
@@ -611,7 +611,7 @@ impl<Scalar: PrimeField> BigNat<Scalar> {
   }
 
   /// Combines limbs into groups.
-  pub fn group_limbs(&self, limbs_per_group: usize) -> Self {
+  fn group_limbs(&self, limbs_per_group: usize) -> Self {
     let n_groups = (self.limbs.len() - 1) / limbs_per_group + 1;
     let limb_values = self.limb_values.as_ref().map(|vs| {
       let mut values: Vec<Scalar> = vec![Scalar::ZERO; n_groups];
@@ -666,19 +666,19 @@ impl<Scalar: PrimeField> BigNat<Scalar> {
     }
   }
 
-  pub fn n_bits(&self) -> usize {
+  fn n_bits(&self) -> usize {
     assert!(self.params.n_limbs > 0);
     self.params.limb_width * (self.params.n_limbs - 1) + self.params.max_word.bits() as usize
   }
 }
 
-pub struct Polynomial<Scalar: PrimeField> {
-  pub coefficients: Vec<LinearCombination<Scalar>>,
-  pub values: Option<Vec<Scalar>>,
+struct Polynomial<Scalar: PrimeField> {
+  coefficients: Vec<LinearCombination<Scalar>>,
+  values: Option<Vec<Scalar>>,
 }
 
 impl<Scalar: PrimeField> Polynomial<Scalar> {
-  pub fn alloc_product<CS: ConstraintSystem<Scalar>>(
+  fn alloc_product<CS: ConstraintSystem<Scalar>>(
     &self,
     mut cs: CS,
     other: &Self,
@@ -743,7 +743,7 @@ impl<Scalar: PrimeField> Polynomial<Scalar> {
     Ok(product)
   }
 
-  pub fn sum(&self, other: &Self) -> Self {
+  fn sum(&self, other: &Self) -> Self {
     let n_coeffs = max(self.coefficients.len(), other.coefficients.len());
     let values = self.values.as_ref().and_then(|self_vs| {
       other.values.as_ref().map(|other_vs| {
@@ -788,9 +788,9 @@ mod tests {
   #[cfg(not(target_arch = "wasm32"))]
   use proptest::prelude::*;
 
-  pub struct PolynomialMultiplier<Scalar: PrimeField> {
-    pub a: Vec<Scalar>,
-    pub b: Vec<Scalar>,
+  struct PolynomialMultiplier<Scalar: PrimeField> {
+    a: Vec<Scalar>,
+    b: Vec<Scalar>,
   }
 
   impl<Scalar: PrimeField> Circuit<Scalar> for PolynomialMultiplier<Scalar> {
@@ -839,16 +839,16 @@ mod tests {
   }
 
   #[derive(Debug)]
-  pub struct BigNatBitDecompInputs {
-    pub n: BigInt,
+  struct BigNatBitDecompInputs {
+    n: BigInt,
   }
 
-  pub struct BigNatBitDecompParams {
-    pub limb_width: usize,
-    pub n_limbs: usize,
+  struct BigNatBitDecompParams {
+    limb_width: usize,
+    n_limbs: usize,
   }
 
-  pub struct BigNatBitDecomp {
+  struct BigNatBitDecomp {
     inputs: Option<BigNatBitDecompInputs>,
     params: BigNatBitDecompParams,
   }
