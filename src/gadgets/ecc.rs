@@ -127,7 +127,7 @@ where
   }
 
   /// Negates the provided point
-  pub fn negate<CS: ConstraintSystem<E::Base>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
+  fn negate<CS: ConstraintSystem<E::Base>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
     let y = AllocatedNum::alloc(cs.namespace(|| "y"), || Ok(-*self.y.get_value().get()?))?;
 
     cs.enforce(
@@ -194,7 +194,7 @@ where
 
   /// Adds other point to this point and returns the result. Assumes that the two points are
   /// different and that both `other.is_infinity` and `this.is_infinty` are bits
-  pub fn add_internal<CS: ConstraintSystem<E::Base>>(
+  fn add_internal<CS: ConstraintSystem<E::Base>>(
     &self,
     mut cs: CS,
     other: &Self,
@@ -357,7 +357,7 @@ where
   }
 
   /// Doubles the supplied point.
-  pub fn double<CS: ConstraintSystem<E::Base>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
+  fn double<CS: ConstraintSystem<E::Base>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
     //*************************************************************/
     // lambda = (E::Base::from(3) * self.x * self.x + E::GE::A())
     //  * (E::Base::from(2)) * self.y).invert().unwrap();
@@ -550,7 +550,7 @@ where
   }
 
   /// If condition outputs a otherwise outputs b
-  pub fn conditionally_select<CS: ConstraintSystem<E::Base>>(
+  fn conditionally_select<CS: ConstraintSystem<E::Base>>(
     mut cs: CS,
     a: &Self,
     b: &Self,
@@ -571,7 +571,7 @@ where
   }
 
   /// If condition outputs a otherwise infinity
-  pub fn select_point_or_infinity<CS: ConstraintSystem<E::Base>>(
+  fn select_point_or_infinity<CS: ConstraintSystem<E::Base>>(
     mut cs: CS,
     a: &Self,
     condition: &Boolean,
@@ -622,7 +622,7 @@ where
   }
 
   /// Turns an `AllocatedPoint` into an `AllocatedPointNonInfinity` (assumes it is not infinity)
-  pub fn from_allocated_point(p: &AllocatedPoint<E>) -> Self {
+  fn from_allocated_point(p: &AllocatedPoint<E>) -> Self {
     Self {
       x: p.x.clone(),
       y: p.y.clone(),
@@ -630,7 +630,7 @@ where
   }
 
   /// Returns an `AllocatedPoint` from an `AllocatedPointNonInfinity`
-  pub fn to_allocated_point(
+  fn to_allocated_point(
     &self,
     is_infinity: &AllocatedNum<E::Base>,
   ) -> Result<AllocatedPoint<E>, SynthesisError> {
@@ -647,7 +647,7 @@ where
   }
 
   /// Add two points assuming self != +/- other
-  pub fn add_incomplete<CS>(&self, mut cs: CS, other: &Self) -> Result<Self, SynthesisError>
+  fn add_incomplete<CS>(&self, mut cs: CS, other: &Self) -> Result<Self, SynthesisError>
   where
     CS: ConstraintSystem<E::Base>,
   {
@@ -709,7 +709,7 @@ where
   }
 
   /// doubles the point; since this is called with a point not at infinity, it is guaranteed to be not infinity
-  pub fn double_incomplete<CS: ConstraintSystem<E::Base>>(
+  fn double_incomplete<CS: ConstraintSystem<E::Base>>(
     &self,
     mut cs: CS,
   ) -> Result<Self, SynthesisError> {
@@ -766,7 +766,7 @@ where
   }
 
   /// If condition outputs a otherwise outputs b
-  pub fn conditionally_select<CS: ConstraintSystem<E::Base>>(
+  fn conditionally_select<CS: ConstraintSystem<E::Base>>(
     mut cs: CS,
     a: &Self,
     b: &Self,
@@ -800,18 +800,18 @@ mod tests {
   use rand::rngs::OsRng;
 
   #[derive(Debug, Clone)]
-  pub struct Point<E: Engine> {
+  struct Point<E: Engine> {
     x: E::Base,
     y: E::Base,
     is_infinity: bool,
   }
 
   impl<E: Engine> Point<E> {
-    pub fn new(x: E::Base, y: E::Base, is_infinity: bool) -> Self {
+    fn new(x: E::Base, y: E::Base, is_infinity: bool) -> Self {
       Self { x, y, is_infinity }
     }
 
-    pub fn random_vartime() -> Self {
+    fn random_vartime() -> Self {
       loop {
         let x = E::Base::random(&mut OsRng);
         let y = (x.square() * x + E::GE::group_params().1).sqrt();
@@ -826,7 +826,7 @@ mod tests {
     }
 
     /// Add any two points
-    pub fn add(&self, other: &Self) -> Self {
+    fn add(&self, other: &Self) -> Self {
       if self.x == other.x {
         // If self == other then call double
         if self.y == other.y {
@@ -845,7 +845,7 @@ mod tests {
     }
 
     /// Add two different points
-    pub fn add_internal(&self, other: &Self) -> Self {
+    fn add_internal(&self, other: &Self) -> Self {
       if self.is_infinity {
         return other.clone();
       }
@@ -864,7 +864,7 @@ mod tests {
       }
     }
 
-    pub fn double(&self) -> Self {
+    fn double(&self) -> Self {
       if self.is_infinity {
         return Self {
           x: E::Base::ZERO,
@@ -886,7 +886,7 @@ mod tests {
       }
     }
 
-    pub fn scalar_mul(&self, scalar: &E::Scalar) -> Self {
+    fn scalar_mul(&self, scalar: &E::Scalar) -> Self {
       let mut res = Self {
         x: E::Base::ZERO,
         y: E::Base::ZERO,
@@ -905,7 +905,7 @@ mod tests {
   }
 
   // Allocate a random point. Only used for testing
-  pub fn alloc_random_point<E: Engine, CS: ConstraintSystem<E::Base>>(
+  fn alloc_random_point<E: Engine, CS: ConstraintSystem<E::Base>>(
     mut cs: CS,
   ) -> Result<AllocatedPoint<E>, SynthesisError> {
     // get a random point
@@ -914,7 +914,7 @@ mod tests {
   }
 
   /// Make the point io
-  pub fn inputize_allocted_point<E: Engine, CS: ConstraintSystem<E::Base>>(
+  fn inputize_allocted_point<E: Engine, CS: ConstraintSystem<E::Base>>(
     p: &AllocatedPoint<E>,
     mut cs: CS,
   ) {
