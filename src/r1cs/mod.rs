@@ -1,7 +1,7 @@
 //! This module defines R1CS related types and a folding scheme for Relaxed R1CS
 mod sparse;
 #[cfg(test)]
-pub(crate) mod util;
+mod util;
 
 use crate::{
   constants::{BN_LIMB_WIDTH, BN_N_LIMBS},
@@ -40,7 +40,7 @@ pub struct R1CSShape<E: Engine> {
   pub(crate) C: SparseMatrix<E::Scalar>,
   #[serde(skip, default = "OnceCell::new")]
   #[abomonate_with(<E::Scalar as PrimeField>::Repr)]
-  pub(crate) digest: OnceCell<E::Scalar>,
+  digest: OnceCell<E::Scalar>,
 }
 
 impl<E: Engine> SimpleDigestible for R1CSShape<E> {}
@@ -48,9 +48,9 @@ impl<E: Engine> SimpleDigestible for R1CSShape<E> {}
 /// A type that holds the result of a R1CS multiplication
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct R1CSResult<E: Engine> {
-  pub(crate) AZ: Vec<E::Scalar>,
-  pub(crate) BZ: Vec<E::Scalar>,
-  pub(crate) CZ: Vec<E::Scalar>,
+  AZ: Vec<E::Scalar>,
+  BZ: Vec<E::Scalar>,
+  CZ: Vec<E::Scalar>,
 }
 
 /// A type that holds a witness for a given R1CS instance
@@ -266,7 +266,7 @@ impl<E: Engine> R1CSShape<E> {
     Ok((Az, Bz, Cz))
   }
 
-  pub(crate) fn multiply_witness(
+  fn multiply_witness(
     &self,
     W: &[E::Scalar],
     u: &E::Scalar,
@@ -289,7 +289,7 @@ impl<E: Engine> R1CSShape<E> {
     Ok((Az, Bz, Cz))
   }
 
-  pub(crate) fn multiply_witness_into(
+  fn multiply_witness_into(
     &self,
     W: &[E::Scalar],
     u: &E::Scalar,
