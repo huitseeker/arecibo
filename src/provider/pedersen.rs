@@ -309,12 +309,16 @@ where
   fn scale(&self, r: &E::Scalar) -> Self {
     let ck_scaled = self
       .ck
-      .clone()
-      .into_par_iter()
-      .map(|g| E::GE::vartime_multiscalar_mul(&[*r], &[g]).to_affine())
-      .collect();
+      .par_iter()
+      .map(|g| g.clone() * r)
+      .collect::<Vec<_>>();
 
-    Self { ck: ck_scaled }
+    let mut ck_scaled_affine = self.ck.clone();
+    <E::GE as Curve>::batch_normalize(&ck_scaled, &mut ck_scaled_affine);
+
+    Self {
+      ck: ck_scaled_affine,
+    }
   }
 
   /// reinterprets a vector of commitments as a set of generators
