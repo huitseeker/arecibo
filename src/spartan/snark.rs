@@ -438,7 +438,12 @@ pub(in crate::spartan) fn batch_eval_prove<E: Engine, const N: usize>(
   NovaError,
 > {
   // Compute nᵢ and n = maxᵢ{nᵢ}
-  let num_rounds: [usize; N] = u_vec.iter().map(|u| u.x.len()).collect::<Vec<_>>().try_into().expect("unreachable");
+  let num_rounds: [usize; N] = u_vec
+    .iter()
+    .map(|u| u.x.len())
+    .collect::<Vec<_>>()
+    .try_into()
+    .expect("unreachable");
 
   // Check polynomials match number of variables, i.e. |Pᵢ| = 2^nᵢ
   zip_with_for_each!(iter, (w_vec, num_rounds), |w, num_vars| assert_eq!(
@@ -455,7 +460,10 @@ pub(in crate::spartan) fn batch_eval_prove<E: Engine, const N: usize>(
 
   // Create clones of polynomials to be given to Sumcheck
   // Pᵢ(X)
-  let polys_P = w_vec.iter().map(|w| MultilinearPolynomial::new(w.p.clone())).collect::<Vec<_>>();
+  let polys_P = w_vec
+    .iter()
+    .map(|w| MultilinearPolynomial::new(w.p.clone()))
+    .collect::<Vec<_>>();
 
   // eq(xᵢ, X)
   let polys_eq = u_xs
@@ -470,8 +478,9 @@ pub(in crate::spartan) fn batch_eval_prove<E: Engine, const N: usize>(
       .try_into()
       .map_err(|_| NovaError::InvalidInputLength)?,
     &num_rounds,
-    polys_P.try_into()
-    .map_err(|_| NovaError::InvalidInputLength)?,
+    polys_P
+      .try_into()
+      .map_err(|_| NovaError::InvalidInputLength)?,
     polys_eq
       .try_into()
       .map_err(|_| NovaError::InvalidInputLength)?,
