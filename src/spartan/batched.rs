@@ -180,10 +180,10 @@ impl<E: Engine, EE: EvaluationEngineTrait<E>> BatchedRelaxedR1CSSNARKTrait<E>
     let num_rounds_y_max = *num_rounds_y.iter().max().unwrap();
     let num_rounds_x: [_; N] = num_rounds_x
       .try_into()
-      .map_err(|_| NovaError::InternalError)?;
+      .map_err(|_| NovaError::InvalidInputLength)?;
     let num_rounds_y: [_; N] = num_rounds_y
       .try_into()
-      .map_err(|_| NovaError::InternalError)?;
+      .map_err(|_| NovaError::InvalidInputLength)?;
 
     // Generate tau polynomial corresponding to eq(τ, τ², τ⁴ , …)
     // for a random challenge τ
@@ -286,7 +286,7 @@ impl<E: Engine, EE: EvaluationEngineTrait<E>> BatchedRelaxedR1CSSNARKTrait<E>
       .map(|(eval_Az, eval_Bz, eval_Cz)| *eval_Az + inner_r * eval_Bz + inner_r_square * eval_Cz)
       .collect::<Vec<_>>()
       .try_into()
-      .map_err(|_| NovaError::InternalError)?;
+      .map_err(|_| NovaError::InvalidInputLength)?;
 
     let polys_ABCs = {
       let inner = |M_evals_As: Vec<E::Scalar>,

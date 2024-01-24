@@ -531,11 +531,7 @@ mod test {
 
     let (prover_key, verifier_key) = CompressedSNARK::<_, _, _, _, S1, S2, 2>::setup(&pp).unwrap();
 
-    let compressed_prove_res = CompressedSNARK::prove(&pp, &prover_key, &recursive_snark);
-
-    assert!(compressed_prove_res.is_ok());
-
-    let compressed_snark = compressed_prove_res.unwrap();
+    let compressed_snark = CompressedSNARK::prove(&pp, &prover_key, &recursive_snark).unwrap();
 
     let compressed_verify_res =
       compressed_snark.verify(&pp, &verifier_key, &z0_primary, &z0_secondary);
@@ -714,8 +710,6 @@ mod test {
     let (prover_key, verifier_key) = CompressedSNARK::<_, _, _, _, S1, S2, 2>::setup(&pp).unwrap();
 
     let compressed_prove_res = CompressedSNARK::prove(&pp, &prover_key, &recursive_snark);
-
-    assert!(compressed_prove_res.is_ok());
 
     let compressed_snark = compressed_prove_res.unwrap();
 
