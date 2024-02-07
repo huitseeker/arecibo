@@ -170,6 +170,7 @@ impl<E: Engine, EE: EvaluationEngineTrait<E>> BatchedRelaxedR1CSSNARKTrait<E>
     Ok((pk, vk))
   }
 
+  #[tracing::instrument(skip_all, level = "trace", name = "BatchedRelaxedR1CSPPSNARK::prove")]
   fn prove(
     ck: &CommitmentKey<E>,
     pk: &Self::ProverKey,
@@ -742,6 +743,7 @@ impl<E: Engine, EE: EvaluationEngineTrait<E>> BatchedRelaxedR1CSSNARKTrait<E>
     })
   }
 
+  #[tracing::instrument(skip_all, level = "trace", name = "BatchedRelaxedR1CSPPSNARK::verify")]
   fn verify(&self, vk: &Self::VerifierKey, U: &[RelaxedR1CSInstance<E>]) -> Result<(), NovaError> {
     let num_instances = U.len();
     let num_claims_per_instance = 10;

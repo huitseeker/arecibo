@@ -242,6 +242,7 @@ where
     UniversalKZGParam::gen_srs_for_testing(rng, n.next_power_of_two())
   }
 
+  #[tracing::instrument(skip_all, name = "KZGCommitmentEngine::commit")]
   fn commit(ck: &Self::CommitmentKey, v: &[<E::G1 as Group>::Scalar]) -> Self::Commitment {
     assert!(ck.length() >= v.len());
     Commitment {

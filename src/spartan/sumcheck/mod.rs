@@ -126,6 +126,7 @@ impl<E: Engine> SumcheckProof<E> {
       )
   }
 
+  #[tracing::instrument(name = "prove_quad", skip_all)]
   pub fn prove_quad_batch<F>(
     claims: &[E::Scalar],
     num_rounds: &[usize],
@@ -351,6 +352,7 @@ impl<E: Engine> SumcheckProof<E> {
       )
   }
 
+  #[tracing::instrument(name = "prove_cubic_with_additive_term", skip_all)]
   pub fn prove_cubic_with_additive_term_batch<F>(
     claims: &[E::Scalar],
     num_rounds: &[usize],

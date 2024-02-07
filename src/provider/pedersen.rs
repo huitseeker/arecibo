@@ -9,6 +9,7 @@ use crate::{
   zip_with,
 };
 use abomonation_derive::Abomonation;
+use tracing::info_span;
 use core::{
   fmt::Debug,
   marker::PhantomData,
@@ -223,6 +224,7 @@ where
     }
   }
 
+  #[tracing::instrument(skip_all, name = "PedersenCommitmentEngine::commit")]
   fn commit(ck: &Self::CommitmentKey, v: &[E::Scalar]) -> Self::Commitment {
     assert!(ck.ck.len() >= v.len());
     Commitment {
@@ -264,11 +266,14 @@ where
   E: Engine<CE = CommitmentEngine<E>>,
   E::GE: DlogGroup<ScalarExt = E::Scalar>,
 {
+
+  #[tracing::instrument(skip_all, name = "PedersenCommitmentKey::split_at")]
   fn split_at(mut self, n: usize) -> (Self, Self) {
     let right = self.ck.split_off(n);
     (self, Self { ck: right })
   }
 
+  #[tracing::instrument(skip_all, name = "PedersenCommitmentKey::combine")]
   fn combine(&self, other: &Self) -> Self {
     let ck = {
       self
@@ -282,25 +287,35 @@ where
   }
 
   // combines the left and right halves of `self` using `w1` and `w2` as the weights
+  #[tracing::instrument(skip_all, name = "PedersenCommitmentKey::fold")]
   fn fold(L: &Self, R: &Self, w1: &E::Scalar, w2: &E::Scalar) -> Self {
     debug_assert!(L.ck.len() == R.ck.len());
-    let ck_curve: Vec<E::GE> = zip_with!(par_iter, (L.ck, R.ck), |l, r| {
-      E::GE::vartime_multiscalar_mul(&[*w1, *w2], &[*l, *r])
-    })
-    .collect();
-    let mut ck_affine = vec![<E::GE as PrimeCurve>::Affine::identity(); L.ck.len()];
-    E::GE::batch_normalize(&ck_curve, &mut ck_affine);
+    let mut L = L.clone();
+    let mut R = R.clone();
+    L.scale(w1);
+    R.scale(w2);
 
+    let ck_curve: Vec<E::GE> = info_span!("MSM").in_scope(|| 
+      zip_with!(par_iter, (L.ck, R.ck), |l, r| {
+        l.to_curve() + r
+      })
+    .collect());
+    let mut ck_affine = vec![<E::GE as PrimeCurve>::Affine::identity(); L.ck.len()];
+    info_span!("batch_normalize").in_scope(|| {
+      E::GE::batch_normalize(&ck_curve, &mut ck_affine)
+    });
     Self { ck: ck_affine }
   }
 
   /// Scales each element in `self` by `r`
+  #[tracing::instrument(skip_all, name = "PedersenCommitmentKey::scale")]
   fn scale(&mut self, r: &E::Scalar) {
     let ck_scaled: Vec<E::GE> = self.ck.par_iter().map(|g| *g * r).collect();
     E::GE::batch_normalize(&ck_scaled, &mut self.ck);
   }
 
   /// reinterprets a vector of commitments as a set of generators
+  #[tracing::instrument(skip_all, name = "PedersenCommitmentKey::reinterpret_commitments")]
   fn reinterpret_commitments_as_ck(c: &[CompressedCommitment<E>]) -> Result<Self, NovaError> {
     let d = c
       .par_iter()

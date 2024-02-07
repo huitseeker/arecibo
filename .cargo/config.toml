@@ -44,3 +44,6 @@ xclippy = [
     "-Wunused_lifetimes",
     "-Wunused_qualifications",
 ]
+
+[build]
+rustflags = ["--cfg", "tracing_unstable"]

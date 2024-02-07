@@ -15,6 +15,7 @@ use core::iter;
 use ff::Field;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
+use tracing::info_span;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -64,6 +65,7 @@ where
     (pk, vk)
   }
 
+  #[tracing::instrument(skip_all, level = "trace", name = "IPA::prove")]
   fn prove(
     ck: &CommitmentKey<E>,
     pk: &Self::ProverKey,
@@ -173,7 +175,7 @@ where
   ) -> Result<Self, NovaError> {
     transcript.dom_sep(Self::protocol_name());
 
-    let (ck, _) = ck.split_at(U.b_vec.len());
+    let (mut ck, _) = ck.split_at(U.b_vec.len());
 
     if U.b_vec.len() != W.a_vec.len() {
       return Err(NovaError::InvalidInputLength);
@@ -204,8 +206,8 @@ where
       let n = a_vec.len();
       let (ck_L, ck_R) = ck.split_at(n / 2);
 
-      let c_L = inner_product(&a_vec[0..n / 2], &b_vec[n / 2..n]);
-      let c_R = inner_product(&a_vec[n / 2..n], &b_vec[0..n / 2]);
+      let c_L = info_span!("inner product 1").in_scope(|| inner_product(&a_vec[0..n / 2], &b_vec[n / 2..n]));
+      let c_R = info_span!("inner product 2").in_scope(|| inner_product(&a_vec[n / 2..n], &b_vec[0..n / 2]));
 
       let L = CE::<E>::commit(
         &ck_R.combine(&ck_c),
@@ -226,8 +228,10 @@ where
       )
       .compress();
 
-      transcript.absorb(b"L", &L);
-      transcript.absorb(b"R", &R);
+      info_span!("inner IPA absorbs").in_scope(|| {
+        transcript.absorb(b"L", &L);
+        transcript.absorb(b"R", &R);
+      });
 
       let r = transcript.squeeze(b"r")?;
       let r_inverse = r.invert().unwrap();
@@ -257,7 +261,7 @@ where
     // we create mutable copies of vectors and generators
     let mut a_vec = W.a_vec.to_vec();
     let mut b_vec = U.b_vec.to_vec();
-    let mut ck = ck;
+    
     for _i in 0..usize::try_from(U.b_vec.len().ilog2()).unwrap() {
       let (L, R, a_vec_folded, b_vec_folded, ck_folded) =
         prove_inner(&a_vec, &b_vec, ck, transcript)?;

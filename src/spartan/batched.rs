@@ -126,6 +126,7 @@ impl<E: Engine, EE: EvaluationEngineTrait<E>> BatchedRelaxedR1CSSNARKTrait<E>
     Ok((pk, vk))
   }
 
+  #[tracing::instrument(skip_all, level = "trace", name = "BatchedRelaxedR1CSSNARK::prove")]
   fn prove(
     ck: &CommitmentKey<E>,
     pk: &Self::ProverKey,

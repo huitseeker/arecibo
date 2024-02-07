@@ -844,6 +844,7 @@ where
   }
 
   /// Create a new `CompressedSNARK`
+  #[tracing::instrument(skip_all, name="CompressedSNARK::prove")]
   pub fn prove(
     pp: &PublicParams<E1>,
     pk: &ProverKey<E1, S1, S2>,
@@ -862,17 +863,15 @@ where
     )?;
 
     // create SNARKs proving the knowledge of f_W_primary and f_W_secondary
-    let (r_W_snark_primary, f_W_snark_secondary) = rayon::join(
-      || {
+    let (r_W_snark_primary, f_W_snark_secondary) = (
         S1::prove(
           &pp.ck_primary,
           &pk.pk_primary,
           &pp.circuit_shape_primary.r1cs_shape,
           &recursive_snark.r_U_primary,
           &recursive_snark.r_W_primary,
-        )
-      },
-      || {
+        ),
+     
         S2::prove(
           &pp.ck_secondary,
           &pk.pk_secondary,
@@ -880,7 +879,7 @@ where
           &f_U_secondary,
           &f_W_secondary,
         )
-      },
+     
     );
 
     Ok(Self {

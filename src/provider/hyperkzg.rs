@@ -31,6 +31,7 @@ use rayon::prelude::*;
 use ref_cast::RefCast as _;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::sync::Arc;
+use tracing::info_span;
 
 /// Provides an implementation of a polynomial evaluation argument
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -60,6 +61,7 @@ where
   E::Fr: TranscriptReprTrait<E::G1>,
   E::G1Affine: TranscriptReprTrait<E::G1>, // TODO: this bound on DlogGroup is really unusable!
 {
+  #[tracing::instrument(name="compute_challenge", skip_all)]
   /// TODO: write doc
   pub fn compute_challenge(
     com: &[E::G1Affine],
@@ -73,6 +75,7 @@ where
   // Compute challenge q = Hash(vk, C0, ..., C_{k-1}, u0, ...., u_{t-1},
   // (f_i(u_j))_{i=0..k-1,j=0..t-1})
   // It is assumed that both 'C' and 'u' are already absorbed by the transcript
+  #[tracing::instrument(name="get_batch_challenge", skip_all)]
   pub fn get_batch_challenge(
     v: &[Vec<E::Fr>],
     transcript: &mut impl TranscriptEngineTrait<NE>,
@@ -89,12 +92,14 @@ where
     transcript.squeeze(b"r").unwrap()
   }
 
+  #[tracing::instrument(name="batch_challenge_powers", skip_all)]
   /// Compute powers of q : (1, q, q^2, ..., q^(k-1))
   pub fn batch_challenge_powers(q: E::Fr, k: usize) -> Vec<E::Fr> {
     powers(&q, k)
   }
 
   /// TODO: write doc
+  #[tracing::instrument(name="verifier_second_challenge", skip_all)]
   pub fn verifier_second_challenge(
     W: &[E::G1Affine],
     transcript: &mut impl TranscriptEngineTrait<NE>,
@@ -127,6 +132,7 @@ where
     UniversalKZGParam::trim(ck, len)
   }
 
+  #[tracing::instrument(skip_all, level = "trace", name = "HyperKZG::prove")]
   fn prove(
     ck: &UniversalKZGParam<E>,
     _pk: &Self::ProverKey,
@@ -202,10 +208,10 @@ where
       let B = kzg_compute_batch_polynomial(f, q);
 
       // Now open B at u0, ..., u_{t-1}
-      let w = u
+      let w = info_span!("kzg_opens").in_scope(|| u
         .into_par_iter()
         .map(|ui| kzg_open(&B, *ui))
-        .collect::<Vec<_>>();
+        .collect::<Vec<_>>());
 
       // The prover computes the challenge to keep the transcript in the same
       // state as that of the verifier
@@ -258,7 +264,7 @@ where
     let u = vec![r, -r, r * r];
 
     // Phase 3 -- create response
-    let (w, evals) = kzg_open_batch(polys, &u, transcript);
+    let (w, evals) = info_span!("kzg_open_batch").in_scope(|| kzg_open_batch(polys, &u, transcript));
 
     Ok(EvaluationArgument { comms, w, evals })
   }
