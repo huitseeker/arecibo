@@ -9,7 +9,6 @@ use crate::{
   zip_with,
 };
 use abomonation_derive::Abomonation;
-use tracing::info_span;
 use core::{
   fmt::Debug,
   marker::PhantomData,
@@ -290,20 +289,13 @@ where
   #[tracing::instrument(skip_all, name = "PedersenCommitmentKey::fold")]
   fn fold(L: &Self, R: &Self, w1: &E::Scalar, w2: &E::Scalar) -> Self {
     debug_assert!(L.ck.len() == R.ck.len());
-    let mut L = L.clone();
-    let mut R = R.clone();
-    L.scale(w1);
-    R.scale(w2);
-
-    let ck_curve: Vec<E::GE> = info_span!("MSM").in_scope(|| 
-      zip_with!(par_iter, (L.ck, R.ck), |l, r| {
-        l.to_curve() + r
-      })
-    .collect());
+    let ck_curve: Vec<E::GE> = zip_with!(par_iter, (L.ck, R.ck), |l, r| {
+      E::GE::vartime_multiscalar_mul(&[*w1, *w2], &[*l, *r])
+    })
+    .collect();
     let mut ck_affine = vec![<E::GE as PrimeCurve>::Affine::identity(); L.ck.len()];
-    info_span!("batch_normalize").in_scope(|| {
-      E::GE::batch_normalize(&ck_curve, &mut ck_affine)
-    });
+    E::GE::batch_normalize(&ck_curve, &mut ck_affine);
+
     Self { ck: ck_affine }
   }
 
