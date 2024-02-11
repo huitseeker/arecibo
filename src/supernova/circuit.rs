@@ -842,8 +842,8 @@ mod tests {
       &params2,
       ro_consts1,
       ro_consts2,
-      &expect!["9836"],
-      &expect!["10384"],
+      &expect!["9840"],
+      &expect!["10388"],
       1,
     );
     // TODO: extend to num_augmented_circuits >= 2
@@ -861,8 +861,8 @@ mod tests {
       &params2,
       ro_consts1,
       ro_consts2,
-      &expect!["10004"],
-      &expect!["10573"],
+      &expect!["10008"],
+      &expect!["10577"],
       1,
     );
     // TODO: extend to num_augmented_circuits >= 2
@@ -880,8 +880,8 @@ mod tests {
       &params2,
       ro_consts1,
       ro_consts2,
-      &expect!["10283"],
-      &expect!["10996"],
+      &expect!["10287"],
+      &expect!["11000"],
       1,
     );
     // TODO: extend to num_augmented_circuits >= 2
