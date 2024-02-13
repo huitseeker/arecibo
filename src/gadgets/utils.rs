@@ -205,6 +205,34 @@ pub fn conditionally_select<F: PrimeField, CS: ConstraintSystem<F>>(
   Ok(c)
 }
 
+// TODO: delete this code duplication when I figure out a better way of doing this
+pub fn conditionally_select_allocated_bit<F: PrimeField, CS: ConstraintSystem<F>>(
+  mut cs: CS,
+  a: &AllocatedBit,
+  b: &AllocatedBit,
+  condition: &Boolean,
+) -> Result<AllocatedBit, SynthesisError> {
+  let c = AllocatedBit::alloc(
+    cs.namespace(|| "conditionally select result"),
+    if *condition.get_value().get()? {
+      a.get_value()
+    } else {
+      b.get_value()
+    },
+  )?;
+
+  // a * condition + b*(1-condition) = c ->
+  // a * condition - b*condition = c - b
+  cs.enforce(
+    || "conditional select constraint",
+    |lc| lc + a.get_variable() - b.get_variable(),
+    |_| condition.lc(CS::one(), F::ONE),
+    |lc| lc + c.get_variable() - b.get_variable(),
+  );
+
+  Ok(c)
+}
+
 /// If condition return a otherwise b
 pub fn conditionally_select_vec<F: PrimeField, CS: ConstraintSystem<F>>(
   mut cs: CS,
