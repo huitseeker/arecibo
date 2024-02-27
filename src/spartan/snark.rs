@@ -115,6 +115,7 @@ pub(in crate::spartan) fn batch_eval_prove<E: Engine>(
 
 /// Verifies a batch of polynomial evaluation claims using Sumcheck
 /// reducing them to a single claim at the same point.
+#[tracing::instrument(skip_all, level = "trace", name = "batch_eval_verify")]
 pub(in crate::spartan) fn batch_eval_verify<E: Engine>(
   u_vec: Vec<PolyEvalInstance<E>>,
   transcript: &mut E::TE,

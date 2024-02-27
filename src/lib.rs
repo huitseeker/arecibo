@@ -844,7 +844,7 @@ where
   }
 
   /// Create a new `CompressedSNARK`
-  #[tracing::instrument(skip_all, name="CompressedSNARK::prove")]
+  #[tracing::instrument(skip_all, name = "CompressedSNARK::prove")]
   pub fn prove(
     pp: &PublicParams<E1>,
     pk: &ProverKey<E1, S1, S2>,
@@ -864,22 +864,20 @@ where
 
     // create SNARKs proving the knowledge of f_W_primary and f_W_secondary
     let (r_W_snark_primary, f_W_snark_secondary) = (
-        S1::prove(
-          &pp.ck_primary,
-          &pk.pk_primary,
-          &pp.circuit_shape_primary.r1cs_shape,
-          &recursive_snark.r_U_primary,
-          &recursive_snark.r_W_primary,
-        ),
-     
-        S2::prove(
-          &pp.ck_secondary,
-          &pk.pk_secondary,
-          &pp.circuit_shape_secondary.r1cs_shape,
-          &f_U_secondary,
-          &f_W_secondary,
-        )
-     
+      S1::prove(
+        &pp.ck_primary,
+        &pk.pk_primary,
+        &pp.circuit_shape_primary.r1cs_shape,
+        &recursive_snark.r_U_primary,
+        &recursive_snark.r_W_primary,
+      ),
+      S2::prove(
+        &pp.ck_secondary,
+        &pk.pk_secondary,
+        &pp.circuit_shape_secondary.r1cs_shape,
+        &f_U_secondary,
+        &f_W_secondary,
+      ),
     );
 
     Ok(Self {
@@ -969,21 +967,13 @@ where
 
     // check the satisfiability of the folded instances using
     // SNARKs proving the knowledge of their satisfying witnesses
-    let (res_primary, res_secondary) = rayon::join(
-      || {
-        self
-          .r_W_snark_primary
-          .verify(&vk.vk_primary, &self.r_U_primary)
-      },
-      || {
-        self
-          .f_W_snark_secondary
-          .verify(&vk.vk_secondary, &f_U_secondary)
-      },
-    );
+    self
+      .r_W_snark_primary
+      .verify(&vk.vk_primary, &self.r_U_primary)?;
 
-    res_primary?;
-    res_secondary?;
+    self
+      .f_W_snark_secondary
+      .verify(&vk.vk_secondary, &f_U_secondary)?;
 
     Ok((self.zn_primary.clone(), self.zn_secondary.clone()))
   }

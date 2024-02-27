@@ -15,9 +15,9 @@ use core::iter;
 use ff::Field;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use tracing::info_span;
 use std::marker::PhantomData;
 use std::sync::Arc;
+use tracing::info_span;
 
 /// Provides an implementation of the prover key
 #[derive(Debug)]
@@ -82,6 +82,7 @@ where
   }
 
   /// A method to verify purported evaluations of a batch of polynomials
+  #[tracing::instrument(skip_all, level = "trace", name = "IPA::verify")]
   fn verify(
     vk: &Self::VerifierKey,
     transcript: &mut E::TE,
@@ -206,8 +207,10 @@ where
       let n = a_vec.len();
       let (ck_L, ck_R) = ck.split_at(n / 2);
 
-      let c_L = info_span!("inner product 1").in_scope(|| inner_product(&a_vec[0..n / 2], &b_vec[n / 2..n]));
-      let c_R = info_span!("inner product 2").in_scope(|| inner_product(&a_vec[n / 2..n], &b_vec[0..n / 2]));
+      let c_L = info_span!("inner product 1")
+        .in_scope(|| inner_product(&a_vec[0..n / 2], &b_vec[n / 2..n]));
+      let c_R = info_span!("inner product 2")
+        .in_scope(|| inner_product(&a_vec[n / 2..n], &b_vec[0..n / 2]));
 
       let L = CE::<E>::commit(
         &ck_R.combine(&ck_c),
@@ -261,7 +264,7 @@ where
     // we create mutable copies of vectors and generators
     let mut a_vec = W.a_vec.to_vec();
     let mut b_vec = U.b_vec.to_vec();
-    
+
     for _i in 0..usize::try_from(U.b_vec.len().ilog2()).unwrap() {
       let (L, R, a_vec_folded, b_vec_folded, ck_folded) =
         prove_inner(&a_vec, &b_vec, ck, transcript)?;

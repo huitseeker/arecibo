@@ -17,8 +17,8 @@ use ff::Field;
 use flate2::{write::ZlibEncoder, Compression};
 use halo2curves::bn256::Bn256;
 use num_bigint::BigUint;
-use tracing::info_span;
 use std::time::Instant;
+use tracing::info_span;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter, Registry};
 use tracing_texray::TeXRayLayer;
 
@@ -190,9 +190,8 @@ impl<G: Group> StepCircuit<G::Scalar> for MinRootCircuit<G> {
 }
 
 macro_rules! println {
-  ($($rest:tt)*) => { }
+  ($($rest:tt)*) => {};
 }
-
 
 /// cargo run --release --example minroot
 fn main() {
@@ -347,7 +346,7 @@ fn main() {
     type S1 = arecibo::spartan::snark::RelaxedR1CSSNARK<E1, EE1>; // non-preprocessing SNARK
     type S2 = arecibo::spartan::snark::RelaxedR1CSSNARK<E2, EE2>; // non-preprocessing SNARK
 
-    let res =  CompressedSNARK::<_, S1, S2>::prove(&pp, &pk, &recursive_snark);
+    let res = CompressedSNARK::<_, S1, S2>::prove(&pp, &pk, &recursive_snark);
     println!(
       "CompressedSNARK::prove: {:?}, took {:?}",
       res.is_ok(),
@@ -367,7 +366,8 @@ fn main() {
     // verify the compressed SNARK
     println!("Verifying a CompressedSNARK...");
     let start = Instant::now();
-    let res = tracing_texray::examine(info_span!("Compressed::Verify")).in_scope(|| {compressed_snark.verify(&vk, num_steps, &z0_primary, &z0_secondary) });
+    let res = tracing_texray::examine(info_span!("Compressed::Verify"))
+      .in_scope(|| compressed_snark.verify(&vk, num_steps, &z0_primary, &z0_secondary));
     println!(
       "CompressedSNARK::verify: {:?}, took {:?}",
       res.is_ok(),

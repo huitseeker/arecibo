@@ -64,6 +64,7 @@ impl<E: Engine> SumcheckProof<E> {
     Ok((e, r))
   }
 
+  #[tracing::instrument(skip_all, level = "trace", name = "SumcheckProof::verify_batch")]
   pub fn verify_batch(
     &self,
     claims: &[E::Scalar],

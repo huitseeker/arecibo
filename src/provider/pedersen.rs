@@ -265,7 +265,6 @@ where
   E: Engine<CE = CommitmentEngine<E>>,
   E::GE: DlogGroup<ScalarExt = E::Scalar>,
 {
-
   #[tracing::instrument(skip_all, name = "PedersenCommitmentKey::split_at")]
   fn split_at(mut self, n: usize) -> (Self, Self) {
     let right = self.ck.split_off(n);
